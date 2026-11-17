@@ -1,0 +1,63 @@
+# Deployment del servicio mineru API (FastAPI)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mineru
+  namespace: mineru
+  labels:
+    app: mineru
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mineru
+  template:
+    metadata:
+      labels:
+        app: mineru
+    spec:
+      containers:
+      - name: mineru
+        image: <region>.ocir.io/<tenancy-namespace>/repo/mineru:latest # Imagen personalizada
+        ports:
+        - containerPort: 8000  # Puerto interno del contenedor (como en docker-compose)
+        resources:
+          requests:
+            memory: "64Gi"
+            cpu: "96000m"
+            nvidia.com/gpu: 2
+          limits:
+            memory: "128Gi"
+            cpu: "192000m"
+            nvidia.com/gpu: 2
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+      imagePullSecrets:
+        - name: ocirsecret
+---
+# Services para ambos deployments
+apiVersion: v1
+kind: Service
+metadata:
+  name: mineru-service
+  namespace: mineru
+spec:
+  selector:
+    app: mineru
+  ports:
+  - port: 8001
+    targetPort: 8000
+  type: LoadBalancer

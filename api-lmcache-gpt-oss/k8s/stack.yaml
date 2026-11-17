@@ -1,0 +1,66 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lmcache
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lmcache
+  namespace: lmcache
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lmcache
+  template:
+    metadata:
+      labels:
+        app: lmcache
+    spec:
+      containers:
+      - name: lmcache
+        image: <region>.ocir.io/<tenancy-namespace>/repo/lmcache:latest # Imagen personalizada
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        readinessProbe:
+          httpGet:
+            path: /v1/models
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 15
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 20
+          periodSeconds: 30
+          timeoutSeconds: 5
+        resources:
+          requests:
+            cpu: "10000m" # 10 vCPU
+            memory: "112Gi"
+            nvidia.com/gpu: 2
+          limits:
+            cpu: "20000m" # 20 vCPU
+            memory: "224Gi"
+            nvidia.com/gpu: 2
+      imagePullSecrets:
+      - name: ocirsecret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lmcache-service
+  namespace: lmcache
+spec:
+  type: LoadBalancer
+  selector:
+    app: lmcache
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
